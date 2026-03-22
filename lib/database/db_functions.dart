@@ -683,16 +683,17 @@ Future<void> addSale(int total) async {
   } catch (e) {}
 }
 
-//Obtiene la cantidad de ventas en un fecha
-Future<int> getQuantityCostumers(int dateToSearch) async {
-  //Obtiene cuantos registro
+//Obtiene la cantidad de ventas en fechas
+Future<int> getQuantityCostumers(List<int> dateIds) async {
+  if (dateIds.isEmpty) return 0;
+  final placeholders = List.filled(dateIds.length, '?').join(',');
   final List<Map<String, dynamic>> result = await _db.rawQuery(
     "SELECT count(*) as cantVentas FROM sales s "
     "INNER JOIN dates d ON s.fecha = d.date_id "
-    "WHERE d.date_id = ? AND "
+    "WHERE d.date_id IN ($placeholders) AND "
     "(s.deleted_at IS NULL OR s.deleted_at = '') AND "
     "(d.deleted_at IS NULL OR d.deleted_at = '')",
-    [dateToSearch],
+    dateIds,
   );
 
   //Verifica que retornaron datos
@@ -706,24 +707,23 @@ Future<int> getQuantityCostumers(int dateToSearch) async {
   }
 }
 
-//Suma los totales de cada venta en una fecha
-Future<int> getNetValue(int dateToSearch) async {
-  //Obtiene cuantos registro
+//Suma los totales de cada venta en fechas
+Future<int> getNetValue(List<int> dateIds) async {
+  if (dateIds.isEmpty) return 0;
+  final placeholders = List.filled(dateIds.length, '?').join(',');
   final List<Map<String, dynamic>> result = await _db.rawQuery(
     "SELECT sum(s.total) as neto FROM sales s "
     "INNER JOIN dates d ON s.fecha = d.date_id "
-    "WHERE d.date_id = ? AND "
+    "WHERE d.date_id IN ($placeholders) AND "
     "(s.deleted_at IS NULL OR s.deleted_at = '') AND "
     "(d.deleted_at IS NULL OR d.deleted_at = '')",
-    [dateToSearch],
+    dateIds,
   );
 
-  if (result[0]['neto'] != null) {
-    // Obtener el valor de la columna "sales_count" del primer resultado
+  if (result.isNotEmpty && result[0]['neto'] != null) {
     final int valorNeto = result[0]['neto'];
-    return valorNeto; // Retornar el valor
+    return valorNeto;
   } else {
-    // Si no se encontraron resultados, retornar 0
     return 0;
   }
 }
@@ -749,13 +749,30 @@ Future<int> getIdFechaSearch(String fecha) async {
   }
 }
 
+//Obtiene los ids de fechas para una fecha específica o un mes
+Future<List<int>> getDateIds(String fecha, bool isMonthly) async {
+  String query;
+  List<String> args;
+  if (isMonthly) {
+    query = "SELECT date_id FROM dates AS d WHERE d.date LIKE ? AND (d.deleted_at IS NULL OR d.deleted_at = '') ORDER BY d.date";
+    args = ['$fecha%'];
+  } else {
+    query = "SELECT date_id FROM dates AS d WHERE d.date = ? AND (d.deleted_at IS NULL OR d.deleted_at = '')";
+    args = [fecha];
+  }
+  final List<Map<String, dynamic>> result = await _db.rawQuery(query, args);
+  return result.map((row) => row['date_id'] as int).toList();
+}
+
 //Obtenemos la hora con mas ventas
-Future<String> getBestHour(int dateToSearch) async {
+Future<String> getBestHour(List<int> dateIds) async {
+  if (dateIds.isEmpty) return '';
+  final placeholders = List.filled(dateIds.length, '?').join(',');
   final List<Map<String, dynamic>> result = await _db.rawQuery(
-    "SELECT hora FROM sales s WHERE s.fecha = ? AND "
+    "SELECT hora FROM sales s WHERE s.fecha IN ($placeholders) AND "
     "(s.deleted_at IS NULL OR s.deleted_at = '') "
     "GROUP BY hora ORDER BY COUNT(*) DESC LIMIT 1;",
-    [dateToSearch],
+    dateIds,
   );
 
   //Verifica que retornaron datos
@@ -769,22 +786,28 @@ Future<String> getBestHour(int dateToSearch) async {
   }
 }
 
-//Obtenemos los productos yentas
-Future<bool> getProductsSales(int dateToSearch) async {
+//Obtenemos los productos vendidos
+Future<bool> getProductsSales(List<int> dateIds) async {
+  if (dateIds.isEmpty) {
+    pdtStadictsList.value.clear();
+    pdtStadictsList.value['Sin ventas'] = 0;
+    return false;
+  }
   pdtStadictsList.value.clear();
 
+  final placeholders = List.filled(dateIds.length, '?').join(',');
   final List<Map<String, dynamic>> result = await _db.rawQuery(
     "SELECT p.text, SUM(dsp.quantity) AS ventaProducto "
     "FROM products p "
     "INNER JOIN details_sale_product dsp USING(product_id) "
     "INNER JOIN sales s USING(sale_id) "
     "INNER JOIN dates d ON d.date_id = s.fecha "
-    "WHERE s.fecha = ? AND "
+    "WHERE s.fecha IN ($placeholders) AND "
     "(s.deleted_at IS NULL OR s.deleted_at = '') AND "
     "(d.deleted_at IS NULL OR d.deleted_at = '') AND "
     "(dsp.deleted_at IS NULL OR dsp.deleted_at = '') "
-    "GROUP BY p.text ORDER BY COUNT(*) DESC;",
-    [dateToSearch],
+    "GROUP BY p.text ORDER BY SUM(dsp.quantity) DESC;",
+    dateIds,
   );
 
   if (result.isEmpty) {
@@ -800,9 +823,6 @@ Future<bool> getProductsSales(int dateToSearch) async {
 
     return true;
   }
-
-  
-
 }
 
 //-------------------------------------------------------------------

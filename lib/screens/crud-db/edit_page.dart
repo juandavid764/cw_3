@@ -46,9 +46,9 @@ class _EditPageState extends State<EditPage> {
                 MaterialPageRoute(builder: (ctr) => const StatisticsScreen()),
               );
             },
-            icon: const Icon(
+            icon: Icon(
               Icons.insert_chart_rounded,
-              color: Color.fromARGB(255, 255, 230, 0),
+              color: Colors.amber.shade700,
             ),
           ),
         ],

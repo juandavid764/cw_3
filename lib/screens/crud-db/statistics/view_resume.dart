@@ -19,6 +19,7 @@ class _ResumeViewState extends State<ResumeView> {
   String _besHourWidget = '';
   Map<String, double> _datos = {'sin ventas': 0};
   String _bestProduct = 'Producto';
+  bool _isMonthly = false;
 
   @override
   void initState() {
@@ -35,6 +36,21 @@ class _ResumeViewState extends State<ResumeView> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            SwitchListTile(
+              title: const Text('Ver por mes'),
+              value: _isMonthly,
+              onChanged: (value) {
+                setState(() {
+                  _isMonthly = value;
+                  _fechaTextWidget = '';
+                  _valorNetoWidget = 0;
+                  _costumerQuantityWidget = 0;
+                  _besHourWidget = '';
+                  _datos = {'sin ventas': 0};
+                  _bestProduct = 'Producto';
+                });
+              },
+            ),
             _buttonCaledar(),
             const SizedBox(height: 10),
             _valorNetoCard(),
@@ -53,19 +69,29 @@ class _ResumeViewState extends State<ResumeView> {
   void _getValueText(List<DateTime?> values) async {
     values = values.map((e) => e != null ? DateUtils.dateOnly(e) : null).toList();
     var valueText = (values.isNotEmpty ? values[0] : null);
-    String finalValueText = DateFormat('yyyy-M-d')
-        .format(valueText!)
-        .toString()
-        .replaceAll('00:00:00.000', '');
+    String finalValueText;
+    if (_isMonthly) {
+      finalValueText = '${valueText!.year}-${valueText.month}';
+    } else {
+      finalValueText = '${valueText!.year}-${valueText.month}-${valueText.day}';
+    }
 
-    int idSearch = await getIdFechaSearch(finalValueText);
-    int valorNetoUpdate = await getNetValue(idSearch);
-    int costumerQuantityupdate = await getQuantityCostumers(idSearch);
-    String bestHour = await getBestHour(idSearch);
+    List<int> dateIds = await getDateIds(finalValueText, _isMonthly);
+
+    int valorNetoUpdate = 0;
+    int costumerQuantityupdate = 0;
+    String bestHour = '';
+
+    await Future.wait([
+      getNetValue(dateIds).then((v) => valorNetoUpdate = v),
+      getQuantityCostumers(dateIds).then((v) => costumerQuantityupdate = v),
+      getBestHour(dateIds).then((v) => bestHour = v),
+      getProductsSales(dateIds),
+    ]);
+
     if (bestHour.isNotEmpty) {
       bestHour = '$bestHour - ${int.parse(bestHour) + 1}';
     }
-    await getProductsSales(idSearch);
 
     setState(() {
       _valorNetoWidget = valorNetoUpdate;
@@ -96,26 +122,39 @@ class _ResumeViewState extends State<ResumeView> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         IconButton(
-          tooltip: 'Selecciona la fecha a consultar',
+          tooltip: 'Selecciona ${_isMonthly ? 'el mes' : 'la fecha'} a consultar',
           icon: const Icon(Icons.calendar_month, color: Colors.amberAccent),
           onPressed: () async {
-            final values = await showCalendarDatePicker2Dialog(
-              dialogSize: const Size(325, 400),
-              context: context,
-              config: CalendarDatePicker2WithActionButtonsConfig(
-                calendarType: CalendarDatePicker2Type.single,
-                selectedDayHighlightColor: Colors.amberAccent,
-                closeDialogOnCancelTapped: true,
-              ),
-              value: [DateTime.now()],
-              dialogBackgroundColor: Colors.black26,
-            );
-            if (values != null) {
-              _getValueText(values);
+            if (_isMonthly) {
+              final selectedDate = await showDatePicker(
+                context: context,
+                initialDate: DateTime.now(),
+                firstDate: DateTime(2000),
+                lastDate: DateTime(2100),
+                initialDatePickerMode: DatePickerMode.year,
+              );
+              if (selectedDate != null) {
+                _getValueText([selectedDate]);
+              }
+            } else {
+              final values = await showCalendarDatePicker2Dialog(
+                dialogSize: const Size(325, 400),
+                context: context,
+                config: CalendarDatePicker2WithActionButtonsConfig(
+                  calendarType: CalendarDatePicker2Type.single,
+                  selectedDayHighlightColor: Colors.amberAccent,
+                  closeDialogOnCancelTapped: true,
+                ),
+                value: [DateTime.now()],
+                dialogBackgroundColor: Colors.black26,
+              );
+              if (values != null) {
+                _getValueText(values);
+              }
             }
           },
         ),
-        Text(_fechaTextWidget, style: const TextStyle(color: Colors.white)),
+        Text('${_isMonthly ? 'Mes' : 'Día'}: $_fechaTextWidget', style: const TextStyle(color: Colors.white)),
       ],
     );
   }
