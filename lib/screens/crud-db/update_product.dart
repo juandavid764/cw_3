@@ -1,5 +1,7 @@
 import 'package:mr_croc/database/db_functions.dart';
+import 'package:mr_croc/models/model_category.dart';
 import 'package:mr_croc/models/model_product.dart';
+import 'package:mr_croc/provider/provider_notifier.dart';
 import 'package:flutter/material.dart';
 
 class UpdateProduct extends StatefulWidget {
@@ -18,9 +20,10 @@ class _UpdateProductState extends State<UpdateProduct> {
 
   final _nameController = TextEditingController();
   final _priceController = TextEditingController();
-  final _categoryController = TextEditingController();
-  final _salsasController = TextEditingController();
   final _textController = TextEditingController();
+
+  int? _selectedCategoryId;
+  int? _selectedSalsas;
 
   @override
   Widget build(BuildContext context) {
@@ -107,27 +110,50 @@ class _UpdateProductState extends State<UpdateProduct> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Guardian input field with validation
+                  // Categoria con dropdown en base a las categorias existentes
                   Row(
                     children: [
                       const Icon(Icons.group_work_sharp),
-                      const SizedBox(
-                          width: 10), // Add spacing between icon and text field
+                      const SizedBox(width: 10),
                       Expanded(
-                        child: TextFormField(
-                          keyboardType: TextInputType.number,
-                          controller: _categoryController,
-                          decoration: InputDecoration(
-                            labelText: "Categoria",
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(15),
-                            ),
-                          ),
-                          validator: (value) {
-                            if (value!.isEmpty) {
-                              return 'Porfavor digite una Categoria';
-                            }
-                            return null;
+                        child: ValueListenableBuilder<List<CategoryModel>>(
+                          valueListenable: categorytList,
+                          builder: (context, categories, _) {
+                            return DropdownButtonFormField<int>(
+                              value: _selectedCategoryId,
+                              decoration: InputDecoration(
+                                labelText: "Categoria",
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                              ),
+                              items: categories.isEmpty
+                                  ? [
+                                      const DropdownMenuItem<int>(
+                                        value: null,
+                                        child: Text('No hay categorias'),
+                                      )
+                                    ]
+                                  : categories
+                                      .map(
+                                        (cat) => DropdownMenuItem<int>(
+                                          value: cat.id,
+                                          child: Text(cat.name),
+                                        ),
+                                      )
+                                      .toList(),
+                              onChanged: (value) {
+                                setState(() {
+                                  _selectedCategoryId = value;
+                                });
+                              },
+                              validator: (value) {
+                                if (value == null) {
+                                  return 'Porfavor selecciona una Categoria';
+                                }
+                                return null;
+                              },
+                            );
                           },
                         ),
                       ),
@@ -135,27 +161,38 @@ class _UpdateProductState extends State<UpdateProduct> {
                   ),
                   const SizedBox(height: 20),
 
-                  // Mobile input field with validation
+                  // Salsas y Adiciones con dropdown (0 o 1)
                   Row(
                     children: [
                       const Icon(Icons.select_all_rounded),
-                      const SizedBox(
-                          width: 10), // Add spacing between icon and text field
+                      const SizedBox(width: 10),
                       Expanded(
-                        child: TextFormField(
-                          keyboardType: TextInputType.number,
-                          controller: _salsasController,
+                        child: DropdownButtonFormField<int>(
+                          value: _selectedSalsas,
                           decoration: InputDecoration(
                             labelText: "Salsas y Adiciones",
                             border: OutlineInputBorder(
                               borderRadius: BorderRadius.circular(15),
                             ),
                           ),
+                          items: const [
+                            DropdownMenuItem<int>(
+                              value: 0,
+                              child: Text('0 - No lleva'),
+                            ),
+                            DropdownMenuItem<int>(
+                              value: 1,
+                              child: Text('1 - Lleva adiciones'),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedSalsas = value;
+                            });
+                          },
                           validator: (value) {
-                            if (value!.isEmpty) {
+                            if (value == null) {
                               return 'Please enter a bolean data';
-                            } else if (value.length != 1) {
-                              return 'Solo un digito';
                             }
                             return null;
                           },
@@ -201,8 +238,8 @@ class _UpdateProductState extends State<UpdateProduct> {
     super.initState();
     _nameController.text = widget.product.name;
     _priceController.text = widget.product.price.toString();
-    _categoryController.text = widget.product.category.toString();
-    _salsasController.text = widget.product.salsas.toString();
+    _selectedCategoryId = widget.product.category;
+    _selectedSalsas = widget.product.salsas;
     _textController.text = widget.product.text;
   }
 
@@ -216,16 +253,29 @@ class _UpdateProductState extends State<UpdateProduct> {
     if (_formKey.currentState!.validate()) {
       final name = _nameController.text;
       final price = _priceController.text;
-      final category = _categoryController.text;
-      final salsas = _salsasController.text;
+      final category = _selectedCategoryId;
+      final salsas = _selectedSalsas;
       final texto = _textController.text;
+
+      if (category == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Selecciona una categoria')),
+        );
+        return;
+      }
+      if (salsas == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Selecciona si lleva salsas y adiciones')),
+        );
+        return;
+      }
 
       final updatedStudent = ProductModel(
         id: product.id,
         name: name,
         price: int.parse(price),
-        category: int.parse(category),
-        salsas: int.parse(salsas),
+        category: category,
+        salsas: salsas,
         text: texto,
       );
 
