@@ -48,55 +48,71 @@ class AdicionesState extends State<Adiciones> {
       body: ResponsiveBuilder(
         builder: (context, sizingInformation) {
           int itemCount;
-          double itemWidth;
-          double itemHeight;
+          double childAspectRatio;
 
           if (sizingInformation.deviceScreenType == DeviceScreenType.desktop) {
             itemCount = 5;
-            itemWidth = 200.0;
-            itemHeight = 100.0;
-          } else if (sizingInformation.deviceScreenType ==
-              DeviceScreenType.tablet) {
-            itemCount = 5;
-            itemWidth = 200.0;
-            itemHeight = 50.0;
+            childAspectRatio = 1.2;
+          } else if (sizingInformation.deviceScreenType == DeviceScreenType.tablet) {
+            itemCount = 4;
+            childAspectRatio = 1.1;
           } else {
             itemCount = 3;
-            itemWidth = 80.0;
-            itemHeight = 50.0;
+            childAspectRatio = 1.0;
           }
 
           return Column(
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              SizedBox(
-                height: 480,
-                child: GridView.builder(
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: itemCount,
-                    crossAxisSpacing: 5.0,
-                    mainAxisSpacing: 5.0,
-                    childAspectRatio: 1.5,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                  child: GridView.builder(
+                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+                    shrinkWrap: false,
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 8.0),
+                    physics: const BouncingScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: itemCount,
+                      crossAxisSpacing: 8.0,
+                      mainAxisSpacing: 8.0,
+                      childAspectRatio: childAspectRatio,
+                    ),
+                    itemCount: _adiciones.length,
+                    itemBuilder: (context, index) {
+                      return Container(
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        padding: const EdgeInsets.all(4),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(minHeight: 64),
+                          child: ButtonAdicion(
+                            title: _adiciones[index].adicion.name,
+                            controller: _adiciones[index].controller,
+                          ),
+                        ),
+                      );
+                    },
                   ),
-                  itemCount: _adiciones.length,
-                  itemBuilder: (context, index) {
-                    return Container(
-                      alignment: Alignment.center,
-                      width: itemWidth,
-                      height: itemHeight,
-                      child: ButtonAdicion(
-                        title: _adiciones[index].adicion.name,
-                        controller: _adiciones[index].controller,
-                      ),
-                    );
-                  },
                 ),
               ),
-              ElevatedButton(
-                style: const ButtonStyle(),
-                onPressed: _save,
-                child: const Text("Siguiente"),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(5),
+                    child: ElevatedButton(
+                      style: const ButtonStyle(),
+                      onPressed: _save,
+                      child: const Text("Siguiente"),
+                    ),
+                  ),
+                ],
               ),
             ],
           );

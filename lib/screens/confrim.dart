@@ -127,9 +127,9 @@ class _PrintPage extends State<PrintPage> {
                     false, // Se establece la condiciÃ³n para eliminar todas las rutas
               );
             },
-            icon: const Icon(
+            icon: Icon(
               Icons.food_bank,
-              color: Color.fromARGB(255, 255, 230, 0),
+              color: Colors.amber.shade700,
             ),
           )
         ],
@@ -202,7 +202,7 @@ class _PrintPage extends State<PrintPage> {
                 height: 30,
               ),
               const Text(
-                'PrevisualizaciÃ³n',
+                'Previsualización',
                 style: TextStyle(
                   color: Colors.white,
                 ),

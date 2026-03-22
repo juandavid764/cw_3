@@ -18,6 +18,7 @@ Future<void> main() async {
   await getcategoriesdata();
   await getproductsdata();
   await getAdditionesData();
+  await getSalsasData();
   runApp(const MyApp());
 }
 
@@ -49,7 +50,7 @@ class MyApp extends StatelessWidget {
 }
 
 final ThemeData darkTheme = ThemeData(
-  colorSchemeSeed: const Color.fromARGB(255, 255, 230, 0),
+  colorSchemeSeed: Colors.amber.shade700,
   useMaterial3: true,
   brightness: Brightness.dark,
   visualDensity: VisualDensity.adaptivePlatformDensity,
@@ -57,17 +58,17 @@ final ThemeData darkTheme = ThemeData(
 
   //Estilos del card
   cardTheme: CardThemeData(
-    color: const Color.fromARGB(255, 197, 197, 0), // Color de fondo de las Card
+    color: Colors.amber.shade700, // Color de fondo de las Card
     elevation: 2, // ElevaciÃ³n de la sombra
     shape: RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(8), // Bordes redondeados
     ),
   ),
-  elevatedButtonTheme: const ElevatedButtonThemeData(
+  elevatedButtonTheme:  ElevatedButtonThemeData(
     style: ButtonStyle(
-        overlayColor: WidgetStatePropertyAll(Colors.amberAccent),
+        overlayColor: WidgetStatePropertyAll(Colors.amber.shade700),
         backgroundColor: WidgetStatePropertyAll(
-          Color.fromARGB(255, 197, 197, 0),
+          Colors.amber.shade700,
         ),
         foregroundColor: WidgetStatePropertyAll(Colors.black87)),
   ),

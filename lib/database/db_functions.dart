@@ -1,6 +1,7 @@
 import 'package:mr_croc/models/model_additions.dart';
 import 'package:mr_croc/models/model_category.dart';
 import 'package:mr_croc/models/model_sale_product.dart';
+import 'package:mr_croc/models/model_salsa.dart';
 import 'package:mr_croc/provider/provider_notifier.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:mr_croc/models/model_product.dart';
@@ -42,6 +43,7 @@ Future<void> _ensureSyncSchema() async {
     'products',
     'categories',
     'additions',
+    'salsas',
     'sales',
     'details_sale_product',
     'dates',
@@ -237,6 +239,7 @@ Future<void> initializeDatabase() async {
 
   // open the database
   _db = await openDatabase(path);
+  
   await _ensureSyncSchema();
 }
 
@@ -859,5 +862,130 @@ Future<bool> updateip(String ip) async {
     return true;
   } catch (e) {
     return false;
+  }
+}
+
+//------------------------------------------------------------------------------
+// SALSAS CRUD Functions
+// Obtiene todas las salsas de la base de datos
+Future<void> getSalsasData() async {
+  final result = await _db.rawQuery(
+    "SELECT * FROM salsas WHERE deleted_at IS NULL OR deleted_at = ''",
+  );
+
+  // Vaciar la lista para llenarla con los valores de la consulta
+  salsasList.value.clear();
+
+  for (var map in result) {
+    // Agregar cada salsa obtenida a "salsasList"
+    final salsa = SalsaModel.fromMap(map);
+    salsasList.value.add(salsa);
+  }
+
+  // Notificar a los listeners (widgets) un cambio en la lista
+  salsasList.notifyListeners();
+}
+
+// Obtener una salsa específica por ID
+Future<SalsaModel?> getSalsaById(String id) async {
+  final result = await _db.rawQuery(
+    "SELECT * FROM salsas WHERE salsa_id = ? AND (deleted_at IS NULL OR deleted_at = '')",
+    [int.tryParse(id) ?? 0],
+  );
+
+  if (result.isNotEmpty) {
+    return SalsaModel.fromMap(result[0]);
+  }
+  return null;
+}
+
+// Insertar una nueva salsa
+Future<void> createSalsa(SalsaModel value) async {
+  try {
+    final now = _nowUtcString();
+    final uuid = _generateUuid();
+    final id = await _db.rawInsert(
+      'INSERT INTO salsas '
+      '(name, color, activo, uuid, created_at, updated_at, sync_status) '
+      'VALUES(?,?,?,?,?,?,?)',
+      [
+        value.name,
+        value.color,
+        value.activo ? 1 : 0,
+        uuid,
+        now,
+        now,
+        syncStatusPending,
+      ],
+    );
+
+    await _insertOutbox(
+      table: 'salsas',
+      rowId: id,
+      rowUuid: uuid,
+      operation: 'insert',
+      payload: {
+        'uuid': uuid,
+        'name': value.name,
+        'color': value.color,
+        'activo': value.activo ? 1 : 0,
+        'created_at': now,
+        'updated_at': now,
+      },
+    );
+
+    // Actualizar la lista de salsas
+    await getSalsasData();
+  } catch (e) {
+    //print('Error creating salsa: $e');
+  }
+}
+
+// Actualizar una salsa existente
+Future<void> updateSalsa(SalsaModel salsa) async {
+  try {
+    final now = _nowUtcString();
+    final uuid = await _ensureRowUuid('salsas', 'salsa_id', int.tryParse(salsa.id) ?? 0);
+    
+    await _db.rawUpdate(
+      'UPDATE salsas SET name = ?, color = ?, activo = ?, updated_at = ?, sync_status = ? WHERE salsa_id = ?',
+      [
+        salsa.name,
+        salsa.color,
+        salsa.activo ? 1 : 0,
+        now,
+        syncStatusPending,
+        int.tryParse(salsa.id) ?? 0,
+      ],
+    );
+
+    await _insertOutbox(
+      table: 'salsas',
+      rowId: int.tryParse(salsa.id) ?? 0,
+      rowUuid: uuid,
+      operation: 'update',
+      payload: {
+        'uuid': uuid,
+        'name': salsa.name,
+        'color': salsa.color,
+        'activo': salsa.activo ? 1 : 0,
+        'updated_at': now,
+      },
+    );
+
+    // Actualizar la lista de salsas
+    await getSalsasData();
+  } catch (e) {
+    //print('Error updating salsa: $e');
+  }
+}
+
+// Eliminar una salsa (soft delete)
+Future<void> deleteSalsa(int id) async {
+  try {
+    await _markDeleted('salsas', 'salsa_id', id);
+    await getSalsasData();
+  } catch (e) {
+    //print('Error deleting salsa: $e');
   }
 }

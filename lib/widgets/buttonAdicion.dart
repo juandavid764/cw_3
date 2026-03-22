@@ -36,43 +36,66 @@ class _ButtonAdicionState extends State<ButtonAdicion> {
   @override
   Widget build(BuildContext context) {
     return Card(
-      shadowColor: Colors.amber,
+      shadowColor: Colors.amberAccent,
       elevation: 0,
       color: const Color.fromARGB(115, 43, 41, 1),
-      child: Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
         child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            Text(
-              widget.title,
-              style: const TextStyle(color: Colors.white),
+            Flexible(
+              child: Text(
+                widget.title,
+                style: const TextStyle(color: Colors.white, fontSize: 14),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                IconButton(
-                  color: Colors.redAccent,
-                  icon: const Icon(Icons.remove),
-                  onPressed: decrement,
-                ),
-                SizedBox(
-                  width: 20,
-                  child: TextFormField(
-                    style: const TextStyle(color: Colors.white),
-                    decoration: const InputDecoration(
-                      border: InputBorder.none,
-                    ),
-                    readOnly: true,
-                    controller: widget.controller,
-                    textAlign: TextAlign.center,
-                    keyboardType: TextInputType.number,
+            const SizedBox(height: 4),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    color: Colors.redAccent,
+                    iconSize: 18,
+                    constraints: const BoxConstraints.tightFor(width: 30, height: 30),
+                    padding: EdgeInsets.zero,
+                    splashRadius: 16,
+                    icon: const Icon(Icons.remove),
+                    onPressed: decrement,
                   ),
-                ),
-                IconButton(
-                  color: Colors.greenAccent,
-                  icon: const Icon(Icons.add),
-                  onPressed: increment,
-                ),
-              ],
+                  Container(
+                    width: 28,
+                    alignment: Alignment.center,
+                    child: TextFormField(
+                      style: const TextStyle(color: Colors.white, fontSize: 20),
+                      decoration: const InputDecoration(
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      readOnly: true,
+                      controller: widget.controller,
+                      textAlign: TextAlign.center,
+                      keyboardType: TextInputType.number,
+                    ),
+                  ),
+                  IconButton(
+                    color: Colors.greenAccent,
+                    iconSize: 18,
+                    constraints: const BoxConstraints.tightFor(width: 30, height: 30),
+                    padding: EdgeInsets.zero,
+                    splashRadius: 16,
+                    icon: const Icon(Icons.add),
+                    onPressed: increment,
+                  ),
+                ],
+              ),
             ),
           ],
         ),

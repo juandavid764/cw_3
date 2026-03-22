@@ -1,5 +1,7 @@
 //import 'dart:ffi';
+import 'dart:math';
 import 'package:mr_croc/provider/provider_notifier.dart';
+import 'package:mr_croc/models/model_salsa.dart';
 import 'package:mr_croc/screens/adiciones.dart';
 import 'package:mr_croc/screens/confrim.dart';
 import 'package:flutter/material.dart';
@@ -15,33 +17,44 @@ class Salsas extends StatefulWidget {
 //Pantalla Menu
 class _SalsasState extends State<Salsas> {
   bool isSwitchedOn = false;
-  List<String> options = [
-    'Roja',
-    'Verde',
-    'BBQ',
-    'PiÃ±a',
-    'Rosada',
-    'Showy',
-    'Sin Roja',
-    'Sin Verde',
-    'Sin pina',
-    'Todas'
-  ];
-  List<bool> isSelected = [
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-    false,
-  ];
+  late List<bool> isSelected;
+  late List<SalsaModel> salsas;
 
   double marginHorizontal = 40;
   double marginVertical = 20;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeSalsas();
+  }
+
+  void _initializeSalsas() {
+    salsas = salsasList.value;
+    isSelected = List<bool>.filled(salsas.length, false);
+  }
+
+  // Calcula la luminancia relativa de un color (0 = oscuro, 1 = claro)
+  static double _getLuminance(Color color) {
+    final r = color.red / 255.0;
+    final g = color.green / 255.0;
+    final b = color.blue / 255.0;
+
+    final rLinear = r <= 0.03928 ? r / 12.92 : pow((r + 0.055) / 1.055, 2.4);
+    final gLinear = g <= 0.03928 ? g / 12.92 : pow((g + 0.055) / 1.055, 2.4);
+    final bLinear = b <= 0.03928 ? b / 12.92 : pow((b + 0.055) / 1.055, 2.4);
+
+    return 0.2126 * rLinear + 0.7152 * gLinear + 0.0722 * bLinear;
+  }
+
+  // Retorna el color de texto óptimo basado en la luminancia del fondo
+  static Color _getTextColor(Color backgroundColor) {
+    final luminance = _getLuminance(backgroundColor);
+    // Si la luminancia es > 0.5, el color es claro, usa texto oscuro
+    // Si no, usa texto blanco
+    return luminance > 0.5 ? Colors.black87 : Colors.white;
+  }
+
   @override
   Widget build(BuildContext context) {
     String selectedOptions = '';
@@ -53,7 +66,7 @@ class _SalsasState extends State<Salsas> {
 
       for (int i = 0; i < isSelected.length; i++) {
         if (isSelected[i]) {
-          selectedOptions += '${options[i]}, ';
+          selectedOptions += '${salsas[i].name}, ';
         }
       }
 
@@ -77,9 +90,18 @@ class _SalsasState extends State<Salsas> {
       }
     }
 
-    return SafeArea(
-      child: Scaffold(
-          appBar: AppBar(
+    return ValueListenableBuilder(
+      valueListenable: salsasList,
+      builder: (context, salsasFromDb, child) {
+        // Actualizar lista local cuando cambia la BD
+        if (salsas.length != salsasFromDb.length) {
+          salsas = salsasFromDb;
+          isSelected = List<bool>.filled(salsas.length, false);
+        }
+
+        return SafeArea(
+          child: Scaffold(
+            appBar: AppBar(
               automaticallyImplyLeading: false,
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back),
@@ -90,13 +112,12 @@ class _SalsasState extends State<Salsas> {
                     indexSalsas.value--;
                   }
                   Navigator.pop(context);
-                  // Navegar hacia atrÃ¡s manualmente cuando se presiona el botÃ³n
                 },
               ),
-              title: const Text("Salsas",
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                  )),
+              title: const Text(
+                "Salsas",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
               actions: [
                 Switch(
                   value: isSwitchedOn,
@@ -106,375 +127,236 @@ class _SalsasState extends State<Salsas> {
                     });
                   },
                 ),
-              ]),
-          body: Column(
-            mainAxisSize: MainAxisSize.max,
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Text('${indexSalsas.value + 1}/$cantProductos',
-                  style: const TextStyle(color: Colors.white)),
-              const Text('Selecciona tus salsas favoritas:',
-                  style: TextStyle(color: Colors.white)),
-              const SizedBox(
-                height: 10,
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.max,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  //----------------
-                  //Salsa Roja
-                  ChoiceChip(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                          20.0), // Radio de la esquina del borde
-                    ),
-                    selectedColor: const Color.fromARGB(255, 255, 82, 82),
-                    //backgroundColor: Color.fromARGB(150, 196, 57, 57),
-                    padding: EdgeInsets.all(
-                        MediaQuery.of(context).size.width * 0.03),
-                    label: Text(options[0]),
-                    selected: isSelected[0],
-                    onSelected: (bool selected) {
-                      setState(() {
-                        isSelected[0] = selected;
-                      });
-                    },
-                  ),
-                  //--------------------------------------------
-                  Container(
-                      padding: const EdgeInsets.all(
-                        5,
-                      ), // Padding deseado para el botÃ³n
-                      child: ChoiceChip(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                              20.0), // Radio de la esquina del borde
+              ],
+            ),
+            body:
+                salsas.isEmpty
+                    ? Center(
+                      child: Text(
+                        'No hay salsas registradas',
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                    )
+                    : Column(
+                      mainAxisSize: MainAxisSize.max,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Text(
+                          '${indexSalsas.value + 1}/$cantProductos',
+                          style: const TextStyle(color: Colors.white),
                         ),
-                        //backgroundColor: Color.fromARGB(255, 45, 120, 76),
-                        selectedColor: const Color.fromARGB(255, 45, 182, 105),
-                        padding: EdgeInsets.all(
-                            MediaQuery.of(context).size.width * 0.03),
-                        label: Text(options[1]),
-                        selected: isSelected[1],
-                        onSelected: (bool selected) {
-                          setState(() {
-                            isSelected[1] = selected;
-                          });
-                        },
-                      )),
-                  //--------------------------------------------
-                  ChoiceChip(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                          20.0), // Radio de la esquina del borde
-                    ),
-                    //backgroundColor: Color.fromARGB(255, 110, 33, 5),
-                    selectedColor: const Color.fromARGB(255, 138, 21, 12),
-                    padding: EdgeInsets.all(
-                        MediaQuery.of(context).size.width * 0.03),
-                    label: Text(options[2]),
-                    selected: isSelected[2],
-                    onSelected: (bool selected) {
-                      setState(() {
-                        isSelected[2] = selected;
-                      });
-                    },
-                  ),
-                ],
-              ),
-              const SizedBox(
-                height: 20,
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.max,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  //--------------------------------------------
-                  Container(
-                      padding: const EdgeInsets.all(
-                        3,
-                      ), // Padding deseado para el botÃ³n
-                      child: ChoiceChip(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                              20.0), // Radio de la esquina del borde
+                        const Text(
+                          'Selecciona tus salsas favoritas:',
+                          style: TextStyle(color: Colors.white),
                         ),
-                        //backgroundColor: Color.fromARGB(200, 130, 130, 11),
-                        selectedColor: const Color.fromARGB(255, 150, 150, 59),
-                        padding: EdgeInsets.all(
-                            MediaQuery.of(context).size.width * 0.03),
-                        label: Text(options[3]),
-                        selected: isSelected[3],
-                        onSelected: (bool selected) {
-                          setState(() {
-                            isSelected[3] = selected;
-                          });
-                        },
-                      )),
-                  //--------------------------------------------
-                  Container(
-                      padding: const EdgeInsets.all(
-                        5,
-                      ), // Padding deseado para el botÃ³n
-                      child: ChoiceChip(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                              20.0), // Radio de la esquina del borde
-                        ),
-                        selectedColor: const Color.fromARGB(255, 255, 104, 229),
-                        //backgroundColor: Color.fromARGB(255, 255, 128, 171),
-                        padding: EdgeInsets.all(
-                            MediaQuery.of(context).size.width * 0.03),
-                        label: Text(options[4]),
-                        selected: isSelected[4],
-                        onSelected: (bool selected) {
-                          setState(() {
-                            isSelected[4] = selected;
-                          });
-                        },
-                      )),
+                        const SizedBox(height: 20),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Wrap(
+                                spacing: 10,
+                                runSpacing: 10,
+                                alignment: WrapAlignment.center,
+                                children: List.generate(salsas.length, (index) {
+                                  final salsa = salsas[index];
+                                  final salsaColor = salsa.getColorObject();
+                                  final isSelectedLocal = isSelected[index];
+                                  final labelColor =
+                                      isSelectedLocal
+                                          ? _getTextColor(salsaColor)
+                                          : Colors.white;
+                                  final chipBackground =
+                                      isSelectedLocal
+                                          ? salsaColor
+                                          : Colors.transparent;
 
-                  //--------------------------------------------
-                  Container(
-                      padding: const EdgeInsets.all(
-                        5,
-                      ), // Padding deseado para el botÃ³n
-                      child: ChoiceChip(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                              20.0), // Radio de la esquina del borde
-                        ),
-                        selectedColor: const Color.fromARGB(255, 163, 167, 102),
-                        //backgroundColor: Color.fromARGB(255, 163, 167, 102),
-                        padding: EdgeInsets.all(
-                            MediaQuery.of(context).size.width * 0.03),
-                        label: Text(options[5]),
-                        selected: isSelected[5],
-                        onSelected: (bool selected) {
-                          setState(() {
-                            isSelected[5] = selected;
-                          });
-                        },
-                      )),
-                  //--------------------------------------------
-                ],
-              ),
-              const SizedBox(
-                height: 20,
-              ),
-
-              const Divider(), //Divider --------
-
-              const SizedBox(
-                height: 20,
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.max,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  //--------------------------------------------
-                  Container(
-                      padding: const EdgeInsets.all(
-                        5,
-                      ), // Padding deseado para el botÃ³n
-                      child: ChoiceChip(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                              20.0), // Radio de la esquina del borde
-                        ),
-                        padding: EdgeInsets.all(
-                            MediaQuery.of(context).size.width * 0.03),
-                        label: Text(options[6]),
-                        selected: isSelected[6],
-                        onSelected: (bool selected) {
-                          setState(() {
-                            isSelected[6] = selected;
-                          });
-                        },
-                      )),
-
-                  //--------------------------------------------
-                  Container(
-                      padding: const EdgeInsets.all(
-                        3,
-                      ), // Padding deseado para el botÃ³n
-                      child: ChoiceChip(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                              20.0), // Radio de la esquina del borde
-                        ),
-                        padding: EdgeInsets.all(
-                            MediaQuery.of(context).size.width * 0.03),
-                        label: Text(options[7]),
-                        selected: isSelected[7],
-                        onSelected: (bool selected) {
-                          setState(() {
-                            isSelected[7] = selected;
-                          });
-                        },
-                      )),
-                  //--------------------------------------------
-                  Container(
-                      padding: const EdgeInsets.all(
-                        5,
-                      ), // Padding deseado para el botÃ³n
-                      child: ChoiceChip(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                              20.0), // Radio de la esquina del borde
-                        ),
-                        padding: EdgeInsets.all(
-                            MediaQuery.of(context).size.width * 0.03),
-                        label: Text(options[8]),
-                        selected: isSelected[8],
-                        onSelected: (bool selected) {
-                          setState(() {
-                            isSelected[8] = selected;
-                          });
-                        },
-                      )),
-                ],
-              ),
-
-              const SizedBox(
-                height: 20,
-              ),
-              Row(
-                mainAxisSize: MainAxisSize.max,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  //--------------------------------------------
-                  Container(
-                      padding: const EdgeInsets.all(
-                        5,
-                      ), // Padding deseado para el botÃ³n
-                      child: ChoiceChip(
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(
-                              30.0), // Radio de la esquina del borde
-                        ),
-                        padding: EdgeInsets.all(
-                            MediaQuery.of(context).size.width * 0.03),
-                        label: Text(options[9]),
-                        selected: isSelected[9],
-                        onSelected: (bool selected) {
-                          setState(() {
-                            isSelected[9] = selected;
-                          });
-                        },
-                      )),
-
-                  //--------------------------------------------
-                ],
-              ),
-              const Row(children: [
-                SizedBox(
-                  height: 0, //50
-                )
-              ]),
-              Row(
-                mainAxisSize: MainAxisSize.max,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  //--------------------------------------------
-                  Container(
-                    padding: const EdgeInsets.all(
-                      5,
-                    ), // Boton siguiente
-                    child: ElevatedButton(
-                      style: const ButtonStyle(),
-                      child: const Text("Siguiente"),
-                      onPressed: () {
-                        //Se obtienen las salsas y se formatea
-                        salsaSelected();
-
-                        //Navegacion a adiciones o confirm page segun switch
-                        if (isSwitchedOn == true) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: ((context) => const Adiciones()),
+                                  return ChoiceChip(
+                                    avatar:
+                                        isSelectedLocal
+                                            ? Icon(
+                                              Icons.check,
+                                              size: 16,
+                                              color: labelColor,
+                                            )
+                                            : null,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(20.0),
+                                    ),
+                                    selectedColor: salsaColor,
+                                    backgroundColor: chipBackground,
+                                    side: BorderSide(
+                                      color:
+                                          isSelectedLocal
+                                              ? salsaColor
+                                              : Colors.white,
+                                      width: isSelectedLocal ? 2 : 2,
+                                    ),
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal:
+                                          MediaQuery.of(context).size.width *
+                                          0.04,
+                                      vertical: 8,
+                                    ),
+                                    labelStyle: TextStyle(
+                                      color: labelColor,
+                                      fontWeight: FontWeight.w700,
+                                      shadows: [
+                                        Shadow(
+                                          color: Colors.black.withOpacity(0.35),
+                                          offset: const Offset(0.5, 0.5),
+                                          blurRadius: 1.5,
+                                        ),
+                                      ],
+                                    ),
+                                    label: Text(salsa.name),
+                                    selected: isSelected[index],
+                                    onSelected: (bool selected) {
+                                      setState(() {
+                                        isSelected[index] = selected;
+                                      });
+                                    },
+                                  );
+                                }),
+                              ),
                             ),
-                          );
-                        } else {
-                          int tamanoListSalsas =
-                              comanda.value[indexComanda.value].salsas.length;
-                          int tamanoListAdics = comanda
-                              .value[indexComanda.value].adiciones.length;
-                          int diferencia = tamanoListSalsas - tamanoListAdics;
-
-                          //Igualamos salsas y adiciones
-                          for (var i = 0; i < diferencia; i++) {
-                            comanda.value[indexComanda.value].adiciones.add([]);
-                          }
-
-                          //Si ya se seleccionaron salsa a cada producto
-                          if (cantProductos == indexSalsas.value + 1) {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: ((context) => const PrintPage()),
-                              ),
-                            );
-                            //ciclo continua
-                          } else {
-                            indexSalsas.value++;
-
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: ((context) => const Salsas()),
-                              ),
-                            );
-                          }
-                        }
-                      },
-                      onLongPress: () {
-                        //Se obtienen las salsas y se agregarn
-                        salsaSelected();
-                        int tamanoListSalsas =
-                            comanda.value[indexComanda.value].salsas.length;
-                        int tamanoListAdics =
-                            comanda.value[indexComanda.value].adiciones.length;
-                        int diferencia = tamanoListSalsas - tamanoListAdics;
-
-                        //Igualamos salsas y adiciones
-                        for (var i = 0; i < diferencia; i++) {
-                          comanda.value[indexComanda.value].adiciones.add([]);
-                        }
-
-                        int indexNow = indexSalsas.value;
-                        int indexNext = indexNow + 1;
-
-                        //Si los indices posteriores esta inicialidos
-                        if (indexNow < cantProductos) {
-                          for (var i = indexNext; i < cantProductos; i++) {
-                            //si el indice se ha inicializado
-                            if (i >= 0 && i < tamanoListSalsas) {
-                              /* Eliminamos los indices posteriores al actual 
-                              que no se iinicializaron */
-                              comanda.value[indexComanda.value].salsas
-                                  .removeAt(i);
-                            }
-                          }
-                        }
-
-                        //Navega a PrintPage
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: ((context) => const PrintPage()),
                           ),
-                        );
-                      },
+                        ),
+                        const SizedBox(height: 30),
+                        Row(
+                          mainAxisSize: MainAxisSize.max,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(5),
+                              child: ElevatedButton(
+                                style: ElevatedButton.styleFrom(
+                                  foregroundColor: Colors.black87,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(25),
+                                  ),
+                                  elevation: 4,
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 28,
+                                    vertical: 12,
+                                  ),
+                                ),
+                                onPressed: () {
+                                  salsaSelected();
+
+                                  if (isSwitchedOn == true) {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            ((context) => const Adiciones()),
+                                      ),
+                                    );
+                                  } else {
+                                    int tamanoListSalsas =
+                                        comanda
+                                            .value[indexComanda.value]
+                                            .salsas
+                                            .length;
+                                    int tamanoListAdics =
+                                        comanda
+                                            .value[indexComanda.value]
+                                            .adiciones
+                                            .length;
+                                    int diferencia =
+                                        tamanoListSalsas - tamanoListAdics;
+
+                                    for (var i = 0; i < diferencia; i++) {
+                                      comanda
+                                          .value[indexComanda.value]
+                                          .adiciones
+                                          .add([]);
+                                    }
+
+                                    if (cantProductos ==
+                                        indexSalsas.value + 1) {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              ((context) => const PrintPage()),
+                                        ),
+                                      );
+                                    } else {
+                                      indexSalsas.value++;
+
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder:
+                                              ((context) => const Salsas()),
+                                        ),
+                                      );
+                                    }
+                                  }
+                                },
+                                onLongPress: () {
+                                  //Se obtienen las salsas y se agregarn
+                                  salsaSelected();
+                                  int tamanoListSalsas =
+                                      comanda
+                                          .value[indexComanda.value]
+                                          .salsas
+                                          .length;
+                                  int tamanoListAdics =
+                                      comanda
+                                          .value[indexComanda.value]
+                                          .adiciones
+                                          .length;
+                                  int diferencia =
+                                      tamanoListSalsas - tamanoListAdics;
+
+                                  //Igualamos salsas y adiciones
+                                  for (var i = 0; i < diferencia; i++) {
+                                    comanda.value[indexComanda.value].adiciones
+                                        .add([]);
+                                  }
+
+                                  int indexNow = indexSalsas.value;
+                                  int indexNext = indexNow + 1;
+
+                                  //Si los indices posteriores esta inicialidos
+                                  if (indexNow < cantProductos) {
+                                    for (
+                                      var i = indexNext;
+                                      i < cantProductos;
+                                      i++
+                                    ) {
+                                      //si el indice se ha inicializado
+                                      if (i >= 0 && i < tamanoListSalsas) {
+                                        /* Eliminamos los indices posteriores al actual 
+                              que no se iinicializaron */
+                                        comanda.value[indexComanda.value].salsas
+                                            .removeAt(i);
+                                      }
+                                    }
+                                  }
+
+                                  //Navega a PrintPage
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: ((context) => const PrintPage()),
+                                    ),
+                                  );
+                                },
+                                child: const Text("Siguiente"),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                      ],
                     ),
-                  ),
-                ],
-              ),
-            ],
-          )),
+          ),
+        );
+      },
     );
   }
 }

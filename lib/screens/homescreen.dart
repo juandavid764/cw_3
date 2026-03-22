@@ -73,9 +73,9 @@ class _HomeScreeenState extends State<HomeScreeen> {
         actions: [
           IconButton(
             onPressed: _syncNow,
-            icon: const Icon(
+            icon: Icon(
               Icons.sync,
-              color: Color.fromARGB(255, 255, 230, 0),
+              color: Colors.amber.shade700,
             ),
           ),
           IconButton(
@@ -83,9 +83,9 @@ class _HomeScreeenState extends State<HomeScreeen> {
                 Navigator.of(context).push(
                     MaterialPageRoute(builder: (ctxs) => const PasswordPage()));
               },
-              icon: const Icon(
+              icon: Icon(
                 Icons.settings,
-                color: Color.fromARGB(255, 255, 230, 0),
+                color: Colors.amber.shade700,
               ))
         ],
       ),
